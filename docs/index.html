@@ -3,119 +3,219 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>diagnostics-regression-lab</title>
-<meta name="description" content="Device diagnostics pipeline lab: Spark ingest, regression detection that files bugs, REST API, Airflow DAG, telemetry. Synthetic data only.">
-<meta name="theme-color" content="#0b0d12">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%276%27 fill=%27%2360a5fa%27/%3E%3C/svg%3E">
+<title>Diagnostics Regression Lab | Catch the build that got slower</title>
+<meta name="description" content="Spark ingest, privacy rules, a regression test that files the bug once, a REST API and telemetry. Synthetic data, one laptop. Move the thresholds in your browser.">
+<link rel="canonical" href="https://gerardrecinto.github.io/diagnostics-regression-lab/">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#07090E" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F4F5F8" media="(prefers-color-scheme: light)">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Which OS build got slower? This lab finds it and files the bug once.">
+<meta property="og:description" content="Spark ingest, privacy rules, Welch test with an effect floor, bug filing, REST API, metrics. Synthetic data. Try it in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%276%27 fill=%27%2310b981%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>if(!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('js')</script>
 <style>
-:root{--bg:#0b0d12;--fg:#e8eaf0;--mut:#9aa0ae;--line:#232836;--card:#11141c;--acc:#60a5fa;--ok:#4ade80;--bad:#f87171;--ease:cubic-bezier(.16,1,.3,1)}
-*{box-sizing:border-box}html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,system-ui,Segoe UI,sans-serif}
-main{max-width:940px;margin:0 auto;padding:64px 16px 80px}
-h1{font-size:clamp(32px,6vw,52px);line-height:1.05;margin:0 0 12px;letter-spacing:-.02em}
-h2{font-size:22px;margin:52px 0 12px}
-p{margin:8px 0}a{color:var(--acc)}code,pre{font:13px/1.5 ui-monospace,Menlo,monospace}
-.lead{font-size:18px;color:#c9cedb;max-width:720px}.mut{color:var(--mut)}
-.btn{display:inline-block;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:9px 15px;border-radius:10px;font-weight:600;font-size:14px;text-decoration:none;transition:transform .25s var(--ease),border-color .25s}
-.btn:hover{transform:translateY(-2px);border-color:var(--acc)}.btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.btn.p{background:var(--acc);color:#04121a;border-color:transparent}
-.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:32px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
-.stat b{display:block;font-size:28px;color:var(--acc);letter-spacing:-.02em}.stat span{color:var(--mut);font-size:13px}
-.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:14px}
-.step{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;font-size:13px;position:relative}
-.step b{display:block;font:600 12px ui-monospace,Menlo,monospace;color:var(--acc);margin-bottom:4px}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
-.ctl{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:14px}
-.ctl label{font-size:13px;color:var(--mut);display:flex;flex-direction:column;gap:4px;min-width:220px}
-.ctl output{color:var(--fg);font-weight:600}
-input[type=range]{width:100%;accent-color:var(--acc)}
-.bars{display:grid;gap:6px}
-.row{display:grid;grid-template-columns:200px 1fr 120px;gap:10px;align-items:center;font-size:13px}
-.track{position:relative;height:18px;background:#0b0e15;border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.fill{position:absolute;left:0;top:0;bottom:0;background:#334155;transition:width .4s var(--ease)}
-.fill.flag{background:var(--bad)}
+:root{--bg:#07090E;--fg:#E8EBF2;--mut:#98A0B3;--line:#1B2130;--card:#0E121B;--card2:#121826;--a:#10b981;--b:#06b6d4;--c:#8b5cf6;--bad:#f87171;--ok:#34d399;--grid:rgba(255,255,255,.035);--al1:rgba(16,185,129,.20);--al2:rgba(6,182,212,.17);--al3:rgba(139,92,246,.18);--ease:cubic-bezier(.16,1,.3,1)}
+@media(prefers-color-scheme:light){:root{--bg:#F4F5F8;--fg:#0F1420;--mut:#566074;--line:#DDE1EA;--card:#fff;--card2:#F9FAFC;--bad:#b91c1c;--ok:#047857;--grid:rgba(0,0,0,.05);--al1:rgba(16,185,129,.16);--al2:rgba(6,182,212,.14);--al3:rgba(139,92,246,.12)}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 Inter,-apple-system,system-ui,sans-serif;overflow-x:hidden}
+body:before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(to right,var(--grid) 1px,transparent 1px),linear-gradient(to bottom,var(--grid) 1px,transparent 1px);background-size:56px 56px;-webkit-mask-image:radial-gradient(ellipse at 50% 20%,#000,transparent 75%);mask-image:radial-gradient(ellipse at 50% 20%,#000,transparent 75%)}
+.aurora{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.aurora i{position:absolute;width:60vmax;height:60vmax;border-radius:50%;filter:blur(40px)}
+.aurora i:nth-child(1){top:-22vmax;left:-14vmax;background:radial-gradient(circle,var(--al1),transparent 65%);animation:da 26s ease-in-out infinite alternate}
+.aurora i:nth-child(2){top:18vh;right:-22vmax;background:radial-gradient(circle,var(--al2),transparent 65%);animation:db 32s ease-in-out infinite alternate}
+.aurora i:nth-child(3){bottom:-26vmax;left:22vw;background:radial-gradient(circle,var(--al3),transparent 65%);animation:dc 38s ease-in-out infinite alternate}
+@keyframes da{to{transform:translate3d(14vmax,10vmax,0) scale(1.15)}}@keyframes db{to{transform:translate3d(-12vmax,14vmax,0) scale(.9)}}@keyframes dc{to{transform:translate3d(10vmax,-12vmax,0) scale(1.1)}}
+.prog{position:fixed;top:0;left:0;right:0;height:2px;z-index:60;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,var(--a),var(--b),var(--c));pointer-events:none}
+header.nav{position:sticky;top:0;z-index:50;-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);background:color-mix(in srgb,var(--bg) 70%,transparent);border-bottom:1px solid var(--line)}
+.nav div{max-width:1100px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:20px}
+.brand{font:600 14px 'JetBrains Mono',monospace;color:var(--fg);text-decoration:none;display:flex;gap:8px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--a);box-shadow:0 0 0 0 var(--a);animation:ping 2.4s infinite}
+@keyframes ping{70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.nav nav{margin-left:auto;display:flex;gap:18px;font-size:14px}.nav nav a{color:var(--mut);text-decoration:none;transition:color .2s}.nav nav a:hover{color:var(--fg)}
+main{position:relative;z-index:1}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+section{padding:88px 0 0}
+.eyebrow{font:500 12px/1 'JetBrains Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--a);margin:0 0 14px}
+h1{font-size:clamp(38px,7.2vw,76px);line-height:1.02;letter-spacing:-.035em;font-weight:800;margin:0 0 20px}
+h2{font-size:clamp(26px,4vw,40px);line-height:1.1;letter-spacing:-.03em;font-weight:700;margin:0 0 14px}
+.grad{background:linear-gradient(100deg,var(--a),var(--b) 50%,var(--c));-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% 100%;animation:sh 8s linear infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.lead{font-size:clamp(17px,2vw,20px);color:var(--mut);max-width:680px;margin:0}
+p{margin:8px 0}a{color:var(--b)}code{font:13px 'JetBrains Mono',monospace;background:var(--card2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.hero{padding:84px 0 0}.hero .grid{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+.btn{display:inline-block;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:11px 18px;border-radius:12px;font-weight:600;font-size:14px;text-decoration:none;transition:transform .3s var(--ease),border-color .3s,box-shadow .3s}
+.btn:hover{transform:translateY(-2px);border-color:var(--a);box-shadow:0 8px 30px -10px var(--a)}.btn:focus-visible{outline:2px solid var(--b);outline-offset:2px}
+.btn.p{background:linear-gradient(100deg,var(--a),var(--b));color:#031210;border-color:transparent}
+.badges{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}.badges img{height:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px}
+/* live feed */
+.feed{padding:16px;position:relative;overflow:hidden}
+.feed h3{font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:0 0 12px;display:flex;justify-content:space-between}
+.lane{position:relative;height:210px;border:1px solid var(--line);border-radius:12px;background:var(--card2);overflow:hidden}
+.gate{position:absolute;top:0;bottom:0;width:1px;background:linear-gradient(transparent,var(--b),transparent);opacity:.5}
+.gl{position:absolute;bottom:6px;font:500 10px 'JetBrains Mono',monospace;color:var(--mut);transform:translateX(-50%);white-space:nowrap}
+.ev{position:absolute;left:0;font:500 11px 'JetBrains Mono',monospace;padding:3px 7px;border-radius:7px;border:1px solid var(--line);background:var(--card);white-space:nowrap;will-change:transform,opacity}
+.ev.bad{border-color:var(--bad);color:var(--bad)}.ev.priv{border-color:#f59e0b;color:#f59e0b}
+.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;font:500 12px 'JetBrains Mono',monospace}
+.counters div{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--mut)}.counters b{display:block;font-size:20px;color:var(--fg)}
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:40px}
+.stat{padding:20px}.stat b{display:block;font-size:clamp(30px,4vw,44px);letter-spacing:-.03em;font-weight:800;background:linear-gradient(100deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat span{color:var(--mut);font-size:14px}
+/* story */
+.story{padding:120px 0 0}.story p{font-size:clamp(26px,5vw,52px);line-height:1.12;letter-spacing:-.03em;font-weight:700;max-width:960px;margin:0}
+.story .w{color:var(--fg);transition:color .3s linear}.js .story .w{color:color-mix(in srgb,var(--fg) 22%,transparent)}.js .story .w.on{color:var(--fg)}
+/* pipeline */
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:28px;position:relative}
+.step{padding:18px;position:relative;transition:transform .4s var(--ease),border-color .4s,box-shadow .4s}
+.step:hover{transform:translateY(-4px);border-color:var(--a);box-shadow:0 14px 40px -18px var(--a)}
+.step .n{font:600 12px 'JetBrains Mono',monospace;color:var(--a)}.step h3{margin:6px 0 6px;font-size:18px;letter-spacing:-.02em}.step p{font-size:13.5px;color:var(--mut);margin:0}
+.js .steps .step::after{content:"";position:absolute;top:50%;right:-12px;width:12px;height:2px;background:linear-gradient(90deg,var(--a),transparent);opacity:.6}.steps .step:last-child::after{display:none}
+/* demo */
+.panel{padding:22px}
+.ctl{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:18px}
+.ctl label{font-size:13px;color:var(--mut);display:flex;flex-direction:column;gap:6px;min-width:240px;flex:1}
+.ctl output{color:var(--fg);font:600 14px 'JetBrains Mono',monospace}
+input[type=range]{width:100%;accent-color:var(--a)}
+.bars{display:grid;gap:7px}
+.row{display:grid;grid-template-columns:210px 1fr 130px;gap:12px;align-items:center;font-size:13px}
+.track{position:relative;height:20px;background:var(--card2);border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#334155,#475569);transition:width .5s var(--ease),background .3s;width:0}
+.fill.flag{background:linear-gradient(90deg,#b91c1c,var(--bad));box-shadow:0 0 18px -2px var(--bad)}
 .thr{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ok);transition:left .3s var(--ease)}
-.tag{font:12px ui-monospace,Menlo,monospace;color:var(--mut);text-align:right}.tag.flag{color:var(--bad)}
-.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{text-align:left;vertical-align:top;padding:8px;border-bottom:1px solid var(--line)}th{color:var(--mut)}
-pre{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto}
-@media(max-width:720px){.flow{grid-template-columns:1fr 1fr}.row{grid-template-columns:1fr;gap:2px}.tag{text-align:left}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+.tag{font:12px 'JetBrains Mono',monospace;color:var(--mut);text-align:right}.tag.flag{color:var(--bad);font-weight:600}
+.verdict{margin-top:14px;font:500 14px 'JetBrains Mono',monospace}
+.issues{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:16px}
+.issue{padding:14px 16px;border-left:3px solid var(--bad);position:relative;animation:in .5s var(--ease)}
+.issue small{display:block;font:500 11px 'JetBrains Mono',monospace;color:var(--mut)}.issue b{font-size:14px}
+.stamp{position:absolute;right:10px;top:10px;font:700 10px 'JetBrains Mono',monospace;letter-spacing:.12em;color:var(--bad);border:2px solid var(--bad);border-radius:5px;padding:2px 6px;transform:rotate(-6deg);animation:stamp .5s var(--ease)}
+@keyframes stamp{from{opacity:0;transform:rotate(-14deg) scale(1.8)}to{opacity:1;transform:rotate(-6deg) scale(1)}}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.mut{color:var(--mut)}.note{font-size:13px;color:var(--mut)}
+/* cards grid */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:24px}
+.tile{padding:20px;transition:transform .4s var(--ease),border-color .4s}.tile:hover{transform:translateY(-3px);border-color:var(--b)}
+.tile h3{margin:0 0 4px;font-size:17px;letter-spacing:-.01em}.tile .f{font:12px 'JetBrains Mono',monospace;color:var(--a)}
+.tile p{font-size:14px;color:var(--mut);margin:8px 0 0}
+.tile .gap{color:#f59e0b}
+.trade{display:grid;gap:12px;margin-top:24px}
+details.t{padding:0;overflow:hidden}details.t summary{cursor:pointer;list-style:none;padding:16px 20px;display:flex;gap:14px;align-items:baseline;font-weight:600}
+details.t summary::-webkit-details-marker{display:none}details.t summary:after{content:"+";margin-left:auto;font:500 20px 'JetBrains Mono',monospace;color:var(--a);transition:transform .3s}
+details.t[open] summary:after{transform:rotate(45deg)}details.t summary i{font:normal 500 12px 'JetBrains Mono',monospace;color:var(--mut)}
+.tb{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;padding:0 20px 18px;font-size:14px;color:var(--mut)}.tb b{display:block;color:var(--fg);font:600 11px 'JetBrains Mono',monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
+.bug{padding:20px}.bug code{display:block;background:none;border:0;padding:0;color:var(--mut)}
+pre{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font:13px/1.6 'JetBrains Mono',monospace;margin:18px 0 0;position:relative}
+.copy{position:absolute;top:10px;right:10px;font:500 12px 'JetBrains Mono',monospace;background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:5px 10px;cursor:pointer}
+footer{padding:80px 0 60px;color:var(--mut);font-size:14px}
+.js .reveal{opacity:0;transform:translate3d(0,38px,0) scale(.985);transition:opacity .9s var(--ease),transform .9s var(--ease);transition-delay:var(--d,0ms)}.js .reveal.in{opacity:1;transform:none}
+@media(max-width:900px){.hero .grid{grid-template-columns:1fr}.steps{grid-template-columns:1fr 1fr}.js .steps .step::after{display:none}.row{grid-template-columns:1fr;gap:3px}.tag{text-align:left}.nav nav a:nth-child(n+3){display:none}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}.js .reveal{opacity:1;transform:none}}
 </style>
 </head>
 <body>
-<main>
-<h1>diagnostics-regression-lab</h1>
-<p class="lead">Devices send battery and performance numbers. This lab ingests them with Spark, removes anything private, compares one OS build to the last, and files a bug when a metric got worse. Synthetic data, one laptop.</p>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="prog" id="prog"></div>
+<header class="nav"><div><a class="brand" href="#top"><span class="dot"></span>diagnostics-regression-lab</a>
+<nav><a href="#how">How</a><a href="#try">Try it</a><a href="#parts">Parts</a><a href="#tradeoffs">Trade-offs</a><a href="https://github.com/gerardrecinto/diagnostics-regression-lab">GitHub</a></nav></div></header>
+<main id="top">
+<section class="hero"><div class="wrap grid">
+<div>
+<p class="eyebrow">Spark &middot; Python &middot; synthetic data</p>
+<h1>Which OS build got <span class="grad">slower?</span></h1>
+<p class="lead">Devices send battery and speed numbers. This lab reads them with Spark, strips anything private, compares one build to the last, and files a bug once when a number got worse.</p>
 <div class="cta"><a class="btn p" href="#try">Move the thresholds</a><a class="btn" href="https://github.com/gerardrecinto/diagnostics-regression-lab">Source on GitHub</a></div>
-<div class="stats">
-<div class="stat"><b>23</b><span>tests passing</span></div>
-<div class="stat"><b>44,923</b><span>events read, 0 unaccounted</span></div>
-<div class="stat"><b>2 of 12</b><span>build comparisons flagged, both planted</span></div>
-<div class="stat"><b>12</b><span>groups hidden, under 20 devices</span></div>
+<div class="badges"><a href="https://github.com/gerardrecinto/diagnostics-regression-lab/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/gerardrecinto/diagnostics-regression-lab/actions/workflows/ci.yml/badge.svg"></a><img alt="MIT" src="https://img.shields.io/github/license/gerardrecinto/diagnostics-regression-lab"></div>
 </div>
+<div class="card feed reveal" aria-label="Animated sketch of events moving through the pipeline">
+<h3><span>live sketch</span><span>not real traffic</span></h3>
+<div class="lane" id="lane"><div class="gate" style="left:30%"></div><div class="gate" style="left:55%"></div><div class="gate" style="left:80%"></div>
+<span class="gl" style="left:30%">ingest</span><span class="gl" style="left:55%">privacy</span><span class="gl" style="left:80%">aggregate</span></div>
+<div class="counters"><div><b id="c-in">0</b>read</div><div><b id="c-ok">0</b>kept</div><div><b id="c-rej">0</b>rejected</div></div>
+<p class="note" style="margin:10px 0 0">Bad rows go to a reject table with a reason. The email field is dropped before anything is stored. Read equals kept plus rejected, always.</p>
+</div></div>
+<div class="wrap"><div class="stats">
+<div class="card stat reveal"><b data-n="23">23</b><span>tests passing, CI green</span></div>
+<div class="card stat reveal" style="--d:80ms"><b data-n="44923">44,923</b><span>events read, 0 unaccounted</span></div>
+<div class="card stat reveal" style="--d:160ms"><b>2 of 12</b><span>comparisons flagged, both planted</span></div>
+<div class="card stat reveal" style="--d:240ms"><b data-n="12">12</b><span>groups hidden, under 20 devices</span></div>
+</div></div></section>
 
-<h2>The pipeline</h2>
-<div class="flow">
-<div class="step"><b>ingest</b>Spark Structured Streaming, JSON in, Parquet out, bad rows to a reject table</div>
-<div class="step"><b>privacy</b>Field allowlist, salted device token, no email ever stored</div>
-<div class="step"><b>aggregate</b>Exact dedupe, p50, p95, mean, std per build, app and metric. Hide groups under 20 devices</div>
-<div class="step"><b>detect</b>Welch test plus a minimum effect size, Bonferroni corrected</div>
-<div class="step"><b>file bugs</b>One issue per regression, never twice. REST API and metrics alongside</div>
-</div>
+<section class="story"><div class="wrap"><p id="story">A build ships. Photos opens a fifth slower. Maps drains the battery. Nobody files it, so nobody fixes it. This lab files it once, with the numbers, and never twice.</p></div></section>
 
-<h2 id="try">Try it</h2>
-<p class="mut">Build 27A1 against 27A2, real output of the Python run. The same test runs here in your browser; <code>regress.py</code> is the source of truth.</p>
-<div class="panel">
+<section id="how"><div class="wrap">
+<p class="eyebrow reveal">The pipeline</p><h2 class="reveal">Five steps, each one tested</h2>
+<div class="steps">
+<div class="card step reveal"><span class="n">01</span><h3>Ingest</h3><p>Spark Structured Streaming. JSON in, Parquet out. Bad rows go to a reject table with a reason.</p></div>
+<div class="card step reveal" style="--d:80ms"><span class="n">02</span><h3>Privacy</h3><p>Field allowlist, salted device token, no email stored. Tested.</p></div>
+<div class="card step reveal" style="--d:160ms"><span class="n">03</span><h3>Aggregate</h3><p>Exact dedupe, then p50, p95, mean, std per build, app and metric. Groups under 20 devices are hidden.</p></div>
+<div class="card step reveal" style="--d:240ms"><span class="n">04</span><h3>Detect</h3><p>Welch test plus a minimum effect, Bonferroni corrected. Improvements are never flagged.</p></div>
+<div class="card step reveal" style="--d:320ms"><span class="n">05</span><h3>File bugs</h3><p>One issue per regression. REST API and Prometheus metrics sit alongside.</p></div>
+</div></div></section>
+
+<section id="try"><div class="wrap">
+<p class="eyebrow reveal">Try it</p><h2 class="reveal">Move the thresholds, watch the bugs appear</h2>
+<p class="lead reveal">Build 27A1 against 27A2, real output of the Python run. The same test runs here in your browser. <code>regress.py</code> is the source of truth, and a test checks this page agrees with it.</p>
+<div class="card panel reveal" style="margin-top:22px">
 <div class="ctl">
-<label>Minimum effect on the median <output id="eo">5%</output><input id="eff" type="range" min="0" max="30" step="1" value="5"></label>
-<label>Alpha before correction <output id="ao">0.01</output><input id="alp" type="range" min="1" max="50" step="1" value="10"></label>
+<label>Minimum effect on the median <output id="eo">5%</output><input id="eff" type="range" min="0" max="30" step="1" value="5" aria-label="Minimum effect"></label>
+<label>Alpha before correction <output id="ao">0.01</output><input id="alp" type="range" min="1" max="50" step="1" value="10" aria-label="Alpha"></label>
 </div>
 <div class="bars" id="bars"></div>
-<p class="mut" id="verdict" style="margin-top:12px"></p>
-<p class="mut" style="font-size:13px">Planted changes: Photos launch +18%, Maps battery +25%, Safari hang +2%. Measured on 1,800 samples per group, so the numbers wobble around the planted ones. Green line is your effect floor.</p>
-</div>
+<p class="verdict" id="verdict"></p>
+<div class="issues" id="issues"></div>
+<p class="note" style="margin-top:14px">Planted: Photos launch +18%, Maps battery +25%, Safari hang +2%. Measured on 1,800 samples per group, so the numbers wobble around the planted ones. The green line is your effect floor. Safari hang was planted at +2% and measured slightly lower in this sample, so it never flags, even with the floor at 0 and alpha at 0.05.</p>
+</div></div></section>
 
-<h2>What each part shows</h2>
-<div class="scroll"><table>
-<tr><th>Skill</th><th>Where</th><th>What is real, and what is not</th></tr>
-<tr><td>Streaming ingestion</td><td><code>spark_jobs.py</code></td><td>Structured Streaming file source, checkpoint, micro-batches, <code>foreachBatch</code> sink. No Kafka in this repo; see <a href="https://github.com/gerardrecinto/kafka-ops-lab">kafka-ops-lab</a>. No Flink.</td></tr>
-<tr><td>Data quality</td><td><code>test_pipeline.py</code></td><td>Every row is accounted for: stored plus rejected equals read. Reject reasons are kept.</td></tr>
-<tr><td>Privacy</td><td><code>privacy.py</code></td><td>Allowlist, salted hash token, groups under 20 devices suppressed. Tests check no email and no device id in storage or the API.</td></tr>
-<tr><td>Regression detection</td><td><code>regress.py</code></td><td>Planted two regressions and one change too small to count. Flags exactly the two. An improvement is never flagged.</td></tr>
-<tr><td>Automatic bugs</td><td><code>bugs.py</code></td><td>Fingerprinted, filed once. The GitHub sink is tested against a local fake server, not against GitHub.</td></tr>
-<tr><td>REST service</td><td><code>api.py</code></td><td>Validated query parameters, 404, 422, 503 paths, tested over HTTP with the FastAPI test client.</td></tr>
-<tr><td>Telemetry and dashboards</td><td><code>deploy/</code></td><td>Prometheus metrics, five alert rules checked with <code>promtool test rules</code>, a Grafana dashboard whose queries are tested against the real metric names. The dashboard was never loaded into a running Grafana.</td></tr>
-<tr><td>ETL and Airflow</td><td><code>dags/</code></td><td>A three task DAG, loaded and order-checked in CI. Never run under a live Airflow scheduler.</td></tr>
-<tr><td>Languages</td><td>whole repo</td><td>Python and PySpark. No Scala here.</td></tr>
-<tr><td>Scale</td><td>n/a</td><td>One machine, 45 thousand rows, 40 seconds. Nothing here is a claim about billions of devices.</td></tr>
-</table></div>
+<section id="parts"><div class="wrap">
+<p class="eyebrow reveal">What each part shows</p><h2 class="reveal">Real, tested, and where it stops</h2>
+<div class="cards">
+<div class="card tile reveal"><h3>Streaming ingest</h3><div class="f">spark_jobs.py</div><p>Structured Streaming file source, checkpoint, micro-batches, <code>foreachBatch</code> sink. <span class="gap">No Kafka here</span>, see <a href="https://github.com/gerardrecinto/kafka-ops-lab">kafka-ops-lab</a>. <span class="gap">No Flink.</span></p></div>
+<div class="card tile reveal" style="--d:60ms"><h3>Data quality</h3><div class="f">test_pipeline.py</div><p>Every row accounted for: stored plus rejected equals read. Reject reasons kept.</p></div>
+<div class="card tile reveal" style="--d:120ms"><h3>Privacy</h3><div class="f">privacy.py</div><p>Allowlist, salted token, k of 20. Tests check no email and no device id in storage or the API.</p></div>
+<div class="card tile reveal"><h3>Regression detection</h3><div class="f">regress.py</div><p>Two planted regressions and one change too small to count. Flags exactly the two.</p></div>
+<div class="card tile reveal" style="--d:60ms"><h3>Automatic bugs</h3><div class="f">bugs.py</div><p>Fingerprinted, filed once. The GitHub sink is tested against a local fake server, <span class="gap">not against GitHub</span>.</p></div>
+<div class="card tile reveal" style="--d:120ms"><h3>REST service</h3><div class="f">api.py</div><p>Validated query parameters. 200, 404, 422, 503 paths tested over HTTP.</p></div>
+<div class="card tile reveal"><h3>Telemetry</h3><div class="f">deploy/</div><p>Prometheus metrics, five alert rules checked with <code>promtool</code>, a Grafana dashboard checked against real metric names. <span class="gap">Never loaded into a live Grafana.</span></p></div>
+<div class="card tile reveal" style="--d:60ms"><h3>Airflow DAG</h3><div class="f">dags/</div><p>Three tasks, loaded and order-checked in CI. <span class="gap">Never run under a live scheduler.</span></p></div>
+<div class="card tile reveal" style="--d:120ms"><h3>Scale</h3><div class="f">n/a</div><p><span class="gap">One machine, 45 thousand rows, about 40 seconds.</span> Nothing here is a claim about billions of devices. Python and PySpark only, no Scala.</p></div>
+</div></div></section>
 
-<h2>Decisions and trade-offs</h2>
-<p>All design-only: nothing here ran in production.</p>
-<div class="scroll"><table>
-<tr><th>Chose</th><th>Over</th><th>Why</th><th>Costs</th><th>Flip when</th></tr>
-<tr><td>Exact dedupe at aggregate time</td><td>Streaming <code>dropDuplicatesWithinWatermark</code></td><td>In my run, rows older than the watermark vanished: one rejected row went missing, and a six-file test lost three rows. A test now pins it.</td><td>A shuffle over the whole day's data.</td><td>The source is Kafka with a transactional sink, or ids live in a keyed store with a TTL.</td></tr>
-<tr><td>Welch test on summary stats</td><td>Test on every raw event</td><td>Cost grows with groups, not events.</td><td>Mean is skewed for latency data. Fine at 1,800 samples, weak under a few hundred.</td><td>Small groups. Use Mann-Whitney or a bootstrap on raw samples.</td></tr>
-<tr><td>Bonferroni</td><td>Benjamini-Hochberg</td><td>Twelve tests per build pair, and a false bug costs an engineer's time.</td><td>Misses weak but real changes.</td><td>Hundreds of groups per build.</td></tr>
-<tr><td>5% effect floor plus a test</td><td>Significance alone</td><td>At large n a 0.5% shift is "significant" and not worth a bug.</td><td>Slow creep below 5% per build goes unseen.</td><td>Add a trend check across several builds.</td></tr>
-<tr><td>Salted hash token</td><td>Raw device id</td><td>Distinct-device counts still work for the k rule.</td><td>Rotating the salt breaks joins across periods.</td><td>Never needed for this use; keep the salt out of the repo in real use.</td></tr>
-<tr><td>Fingerprint state file</td><td>Search issues by label</td><td>Works offline, no read permission needed.</td><td>The file must be kept across runs.</td><td>The DAG runs on several workers. Search issues by fingerprint.</td></tr>
-</table></div>
+<section><div class="wrap">
+<p class="eyebrow reveal">The bug it filed</p><h2 class="reveal">What lands in the tracker</h2>
+<div class="card bug reveal" style="margin-top:18px;border-left:3px solid var(--bad)"><b>[high] Maps battery_pct_per_hr up 26.1% in 27A2</b><code>Baseline 27A1: median 3.411 over 1,800 samples</code><code>Candidate 27A2: median 4.3 over 1,800 samples</code><code>Labels: regression, high, maps. Aggregates only, no device identifiers.</code></div>
+<p class="note reveal">Rerun the pipeline and nothing is filed again. The fingerprint of metric, app and build is kept in a state file.</p>
+</div></section>
 
-<h2>Run it</h2>
-<p class="mut">Python 3.10 or newer and Java 17 or newer. About a minute on a laptop.</p>
-<pre>git clone https://github.com/gerardrecinto/diagnostics-regression-lab
+<section id="tradeoffs"><div class="wrap">
+<p class="eyebrow reveal">Decisions and trade-offs</p><h2 class="reveal">Why this and not that</h2>
+<p class="mut reveal">All design-only: nothing here ran in production.</p>
+<div class="trade">
+<details class="card t reveal" open><summary>Exact dedupe at aggregate time <i>over watermark dedupe</i></summary><div class="tb"><div><b>Why</b>In my run, rows older than the watermark vanished: one rejected row went missing, and a six-file test lost three. A test now pins it.</div><div><b>Costs</b>A shuffle over the day's data.</div><div><b>Flip when</b>The source is Kafka with a transactional sink, or ids live in a keyed store with a TTL.</div></div></details>
+<details class="card t reveal"><summary>Welch test on summary stats <i>over raw events</i></summary><div class="tb"><div><b>Why</b>Cost grows with groups, not events.</div><div><b>Costs</b>Mean is skewed for latency data. Fine at 1,800 samples, weak under a few hundred.</div><div><b>Flip when</b>Small groups: Mann-Whitney or a bootstrap.</div></div></details>
+<details class="card t reveal"><summary>Bonferroni <i>over Benjamini-Hochberg</i></summary><div class="tb"><div><b>Why</b>Twelve tests per build pair, and a false bug costs an engineer's time.</div><div><b>Costs</b>Misses weak but real changes.</div><div><b>Flip when</b>Hundreds of groups per build.</div></div></details>
+<details class="card t reveal"><summary>5% effect floor plus a test <i>over significance alone</i></summary><div class="tb"><div><b>Why</b>At large n a 0.5% shift is significant and not worth a bug.</div><div><b>Costs</b>Slow creep under 5% per build goes unseen.</div><div><b>Flip when</b>Add a trend check across several builds.</div></div></details>
+<details class="card t reveal"><summary>Salted hash token <i>over raw device id</i></summary><div class="tb"><div><b>Why</b>Distinct-device counts still work for the k rule.</div><div><b>Costs</b>Rotating the salt breaks joins across periods.</div><div><b>Flip when</b>Never needed here. Keep the salt out of the repo in real use.</div></div></details>
+<details class="card t reveal"><summary>Fingerprint state file <i>over searching issues</i></summary><div class="tb"><div><b>Why</b>Works offline, no read permission needed.</div><div><b>Costs</b>The file must persist between runs.</div><div><b>Flip when</b>The DAG runs on several workers. Search issues by fingerprint.</div></div></details>
+</div></div></section>
+
+<section><div class="wrap">
+<p class="eyebrow reveal">Run it</p><h2 class="reveal">About a minute on a laptop</h2>
+<p class="mut reveal">Python 3.10 or newer and Java 17 or newer.</p>
+<pre class="reveal" id="cmd">git clone https://github.com/gerardrecinto/diagnostics-regression-lab
 cd diagnostics-regression-lab
 python3 -m venv .venv &amp;&amp; . .venv/bin/activate
 pip install -e ".[dev]"
 python -m diaglab demo
 DATA_DIR=data/out uvicorn diaglab.api:app --port 8000
-curl "localhost:8000/v1/regressions?baseline=27A1&amp;candidate=27A2"</pre>
-<p class="mut">MIT license. Personal project, synthetic data, not a production system.</p>
+curl "localhost:8000/v1/regressions?baseline=27A1&amp;candidate=27A2"<button class="copy" id="copy" type="button">Copy</button></pre>
+</div></section>
 </main>
+<footer><div class="wrap">MIT license. Personal project, synthetic data, not a production system. <a href="https://github.com/gerardrecinto/diagnostics-regression-lab">Source</a></div></footer>
 <script>
 const DATA=[{"os_build":"27A1","app":"Mail","metric":"battery_pct_per_hr","n":1800,"mean":1.1571,"std":0.3582,"p50":1.1},{"os_build":"27A1","app":"Mail","metric":"hang_ms","n":1800,"mean":100.0289,"std":53.2929,"p50":87.784},{"os_build":"27A1","app":"Mail","metric":"launch_ms","n":1800,"mean":445.4761,"std":157.6357,"p50":418.189},{"os_build":"27A1","app":"Maps","metric":"battery_pct_per_hr","n":1800,"mean":3.5996,"std":1.1053,"p50":3.411},{"os_build":"27A1","app":"Maps","metric":"hang_ms","n":1800,"mean":158.0779,"std":84.9565,"p50":138.944},{"os_build":"27A1","app":"Maps","metric":"launch_ms","n":1800,"mean":695.2032,"std":253.6973,"p50":656.418},{"os_build":"27A1","app":"Photos","metric":"battery_pct_per_hr","n":1800,"mean":1.8908,"std":0.5829,"p50":1.81},{"os_build":"27A1","app":"Photos","metric":"hang_ms","n":1800,"mean":138.8743,"std":73.1538,"p50":122.407},{"os_build":"27A1","app":"Photos","metric":"launch_ms","n":1800,"mean":843.1206,"std":297.8332,"p50":796.818},{"os_build":"27A1","app":"Safari","metric":"battery_pct_per_hr","n":1800,"mean":1.5721,"std":0.4856,"p50":1.5},{"os_build":"27A1","app":"Safari","metric":"hang_ms","n":1800,"mean":114.5885,"std":60.1227,"p50":101.825},{"os_build":"27A1","app":"Safari","metric":"launch_ms","n":1800,"mean":403.826,"std":144.6086,"p50":375.249},{"os_build":"27A2","app":"Mail","metric":"battery_pct_per_hr","n":1800,"mean":1.1594,"std":0.3498,"p50":1.116},{"os_build":"27A2","app":"Mail","metric":"hang_ms","n":1800,"mean":100.2478,"std":51.8357,"p50":88.621},{"os_build":"27A2","app":"Mail","metric":"launch_ms","n":1800,"mean":447.5971,"std":161.2562,"p50":417.27},{"os_build":"27A2","app":"Maps","metric":"battery_pct_per_hr","n":1800,"mean":4.4539,"std":1.3019,"p50":4.3},{"os_build":"27A2","app":"Maps","metric":"hang_ms","n":1800,"mean":160.3716,"std":87.5058,"p50":141.067},{"os_build":"27A2","app":"Maps","metric":"launch_ms","n":1800,"mean":694.4678,"std":252.66,"p50":655.889},{"os_build":"27A2","app":"Photos","metric":"battery_pct_per_hr","n":1800,"mean":1.9082,"std":0.6187,"p50":1.816},{"os_build":"27A2","app":"Photos","metric":"hang_ms","n":1800,"mean":136.7185,"std":73.5193,"p50":119.395},{"os_build":"27A2","app":"Photos","metric":"launch_ms","n":1800,"mean":1016.5051,"std":367.8655,"p50":956.403},{"os_build":"27A2","app":"Safari","metric":"battery_pct_per_hr","n":1800,"mean":1.5699,"std":0.4766,"p50":1.517},{"os_build":"27A2","app":"Safari","metric":"hang_ms","n":1800,"mean":113.572,"std":59.89,"p50":100.414},{"os_build":"27A2","app":"Safari","metric":"launch_ms","n":1800,"mean":410.8026,"std":154.7951,"p50":381.895}];
 const BASE="27A1",CAND="27A2";
@@ -131,14 +231,62 @@ function draw(){
   document.getElementById("eo").textContent=Math.round(eff*100)+"%";
   document.getElementById("ao").textContent=alp.toFixed(3);
   const res=detect(eff,alp),max=.35;
-  document.getElementById("bars").innerHTML=res.map(r=>{
-    const w=Math.max(0,Math.min(100,r.rel/max*100)),t=Math.min(100,eff/max*100);
-    const name=r.k.replace("|"," / ");
-    return `<div class="row"><span>${name}</span><div class="track"><div class="fill ${r.flag?"flag":""}" style="width:${w}%"></div><div class="thr" style="left:${t}%"></div></div><span class="tag ${r.flag?"flag":""}">${(r.rel*100>=0?"+":"")}${(r.rel*100).toFixed(1)}% ${r.flag?"BUG":""}</span></div>`}).join("");
-  const n=res.filter(r=>r.flag).length;
-  document.getElementById("verdict").textContent=n+" of "+res.length+" groups would file a bug at these settings.";
+  const bars=document.getElementById("bars");
+  if(!bars.children.length){bars.innerHTML=res.map(r=>`<div class="row"><span>${r.k.replace("|"," / ")}</span><div class="track"><div class="fill"></div><div class="thr"></div></div><span class="tag"></span></div>`).join("")}
+  res.forEach((r,i)=>{const row=bars.children[i],f=row.querySelector(".fill"),t=row.querySelector(".thr"),g=row.querySelector(".tag");
+    f.style.width=Math.max(0,Math.min(100,r.rel/max*100))+"%";t.style.left=Math.min(100,eff/max*100)+"%";
+    f.classList.toggle("flag",r.flag);g.classList.toggle("flag",r.flag);
+    g.textContent=(r.rel>=0?"+":"")+(r.rel*100).toFixed(1)+"% "+(r.flag?"BUG":"")});
+  const hit=res.filter(r=>r.flag);
+  document.getElementById("verdict").textContent=hit.length+" of "+res.length+" groups would file a bug at these settings.";
+  const box=document.getElementById("issues"),have=[...box.children].map(e=>e.dataset.k);
+  if(have.join()!==hit.map(r=>r.k).join()){box.innerHTML=hit.map(r=>{const [a,m]=r.k.split("|");return `<div class="card issue" data-k="${r.k}"><span class="stamp">FILED</span><small>${CAND} / issue</small><b>${a} ${m} up ${(r.rel*100).toFixed(1)}%</b></div>`}).join("")}
 }
-document.getElementById("eff").addEventListener("input",draw);document.getElementById("alp").addEventListener("input",draw);draw();
+document.getElementById("eff").addEventListener("input",draw);document.getElementById("alp").addEventListener("input",draw);
+document.addEventListener("DOMContentLoaded",draw);
+</script>
+<script>
+(function(){
+var rm=matchMedia('(prefers-reduced-motion: reduce)').matches;
+var p=document.getElementById('prog');
+function sp(){var h=document.documentElement;p.style.transform='scaleX('+Math.min(1,h.scrollTop/(h.scrollHeight-h.clientHeight||1))+')'}
+addEventListener('scroll',sp,{passive:true});sp();
+// story words
+var st=document.getElementById('story'),words=st.textContent.trim().split(/\s+/);
+st.innerHTML=words.map(function(w){return '<span class="w">'+w+'</span> '}).join('');
+var ws=st.querySelectorAll('.w');
+function story(){var r=st.getBoundingClientRect(),vh=innerHeight,pr=Math.min(1,Math.max(0,(vh*.85-r.top)/(vh*.55+r.height*.6)));var n=Math.round(pr*ws.length);ws.forEach(function(e,i){e.classList.toggle('on',i<n)})}
+if(!rm){addEventListener('scroll',story,{passive:true});story()}else ws.forEach(function(e){e.classList.add('on')});
+// reveal
+var els=document.querySelectorAll('.reveal');
+if('IntersectionObserver' in window&&!rm){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -6% 0px'});els.forEach(function(e){io.observe(e)})}else els.forEach(function(e){e.classList.add('in')});
+// count up
+document.querySelectorAll('[data-n]').forEach(function(e){var t=+e.dataset.n;if(rm)return;var done=false;new IntersectionObserver(function(es,o){if(es[0].isIntersecting&&!done){done=true;var s=performance.now();(function f(n){var k=Math.min(1,(n-s)/1200),v=Math.round(t*(1-Math.pow(1-k,3)));e.textContent=v.toLocaleString('en-US');if(k<1)requestAnimationFrame(f)})(s);o.disconnect()}}).observe(e)});
+// event lane
+var lane=document.getElementById('lane'),cin=0,ck=0,cr=0,ci=document.getElementById('c-in'),co=document.getElementById('c-ok'),cx=document.getElementById('c-rej');
+var apps=['Maps','Photos','Mail','Safari'],mets=['launch_ms','battery','hang_ms'];
+function spawn(){
+  if(document.hidden)return;
+  var kind=Math.random(),e=document.createElement('span'),W=lane.clientWidth,y=14+Math.random()*(lane.clientHeight-50);
+  e.className='ev';e.style.top=y+'px';
+  var a=apps[Math.random()*4|0],m=mets[Math.random()*3|0];
+  var bad=kind<.1,priv=!bad&&kind<.35;
+  e.textContent=bad?'{"app": 7?? }':a+' '+m+(priv?' email':'');
+  if(bad)e.classList.add('bad');if(priv)e.classList.add('priv');
+  lane.appendChild(e);cin++;ci.textContent=cin;
+  var g1=W*.30,g2=W*.55,tot=W*.9,dur=5200;
+  var steps=bad?[{transform:'translateX(-120px)',opacity:0},{transform:'translateX('+(g1-60)+'px)',opacity:1,offset:.28},{transform:'translateX('+(g1-20)+'px) translateY(70px) rotate(8deg)',opacity:0}]
+    :[{transform:'translateX(-120px)',opacity:0},{transform:'translateX('+(g1-60)+'px)',opacity:1,offset:.2},{transform:'translateX('+(g2-70)+'px)',opacity:1,offset:.5},{transform:'translateX('+tot+'px)',opacity:0}];
+  if(rm){e.remove();return}
+  var an=e.animate(steps,{duration:bad?2000:dur,easing:'linear',fill:'forwards'});
+  if(priv){setTimeout(function(){e.textContent=a+' '+m;e.classList.remove('priv')},dur*.5*.9)}
+  setTimeout(function(){if(bad){cr++;cx.textContent=cr}},bad?1500:0);
+  an.onfinish=function(){if(!bad){ck++;co.textContent=ck}e.remove()};
+}
+if(!rm){setInterval(spawn,520);spawn()}else{ci.textContent='45k';co.textContent='44,451';cx.textContent='472'}
+// copy
+var cb=document.getElementById('copy');cb.addEventListener('click',function(){var t=document.getElementById('cmd').innerText.replace(/Copy$/,'').trim();try{navigator.clipboard.writeText(t).then(function(){cb.textContent='Copied';setTimeout(function(){cb.textContent='Copy'},1600)})}catch(e){var r=document.createRange();r.selectNodeContents(document.getElementById('cmd'));getSelection().removeAllRanges();getSelection().addRange(r);cb.textContent='Select + copy'}});
+})();
 </script>
 </body>
 </html>
