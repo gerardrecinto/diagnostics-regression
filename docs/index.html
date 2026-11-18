@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>diagnostics-regression-lab</title>
+<meta name="description" content="Device diagnostics pipeline lab: Spark ingest, regression detection that files bugs, REST API, Airflow DAG, telemetry. Synthetic data only.">
+<meta name="theme-color" content="#0b0d12">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%276%27 fill=%27%2360a5fa%27/%3E%3C/svg%3E">
+<style>
+:root{--bg:#0b0d12;--fg:#e8eaf0;--mut:#9aa0ae;--line:#232836;--card:#11141c;--acc:#60a5fa;--ok:#4ade80;--bad:#f87171;--ease:cubic-bezier(.16,1,.3,1)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,system-ui,Segoe UI,sans-serif}
+main{max-width:940px;margin:0 auto;padding:64px 16px 80px}
+h1{font-size:clamp(32px,6vw,52px);line-height:1.05;margin:0 0 12px;letter-spacing:-.02em}
+h2{font-size:22px;margin:52px 0 12px}
+p{margin:8px 0}a{color:var(--acc)}code,pre{font:13px/1.5 ui-monospace,Menlo,monospace}
+.lead{font-size:18px;color:#c9cedb;max-width:720px}.mut{color:var(--mut)}
+.btn{display:inline-block;border:1px solid var(--line);background:var(--card);color:var(--fg);padding:9px 15px;border-radius:10px;font-weight:600;font-size:14px;text-decoration:none;transition:transform .25s var(--ease),border-color .25s}
+.btn:hover{transform:translateY(-2px);border-color:var(--acc)}.btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.btn.p{background:var(--acc);color:#04121a;border-color:transparent}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:32px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.stat b{display:block;font-size:28px;color:var(--acc);letter-spacing:-.02em}.stat span{color:var(--mut);font-size:13px}
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:14px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;font-size:13px;position:relative}
+.step b{display:block;font:600 12px ui-monospace,Menlo,monospace;color:var(--acc);margin-bottom:4px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.ctl{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:14px}
+.ctl label{font-size:13px;color:var(--mut);display:flex;flex-direction:column;gap:4px;min-width:220px}
+.ctl output{color:var(--fg);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.bars{display:grid;gap:6px}
+.row{display:grid;grid-template-columns:200px 1fr 120px;gap:10px;align-items:center;font-size:13px}
+.track{position:relative;height:18px;background:#0b0e15;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.fill{position:absolute;left:0;top:0;bottom:0;background:#334155;transition:width .4s var(--ease)}
+.fill.flag{background:var(--bad)}
+.thr{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ok);transition:left .3s var(--ease)}
+.tag{font:12px ui-monospace,Menlo,monospace;color:var(--mut);text-align:right}.tag.flag{color:var(--bad)}
+.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:8px;border-bottom:1px solid var(--line)}th{color:var(--mut)}
+pre{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto}
+@media(max-width:720px){.flow{grid-template-columns:1fr 1fr}.row{grid-template-columns:1fr;gap:2px}.tag{text-align:left}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<main>
+<h1>diagnostics-regression-lab</h1>
+<p class="lead">Devices send battery and performance numbers. This lab ingests them with Spark, removes anything private, compares one OS build to the last, and files a bug when a metric got worse. Synthetic data, one laptop.</p>
+<div class="cta"><a class="btn p" href="#try">Move the thresholds</a><a class="btn" href="https://github.com/gerardrecinto/diagnostics-regression-lab">Source on GitHub</a></div>
+<div class="stats">
+<div class="stat"><b>23</b><span>tests passing</span></div>
+<div class="stat"><b>44,923</b><span>events read, 0 unaccounted</span></div>
+<div class="stat"><b>2 of 12</b><span>build comparisons flagged, both planted</span></div>
+<div class="stat"><b>12</b><span>groups hidden, under 20 devices</span></div>
+</div>
+
+<h2>The pipeline</h2>
+<div class="flow">
+<div class="step"><b>ingest</b>Spark Structured Streaming, JSON in, Parquet out, bad rows to a reject table</div>
+<div class="step"><b>privacy</b>Field allowlist, salted device token, no email ever stored</div>
+<div class="step"><b>aggregate</b>Exact dedupe, p50, p95, mean, std per build, app and metric. Hide groups under 20 devices</div>
+<div class="step"><b>detect</b>Welch test plus a minimum effect size, Bonferroni corrected</div>
+<div class="step"><b>file bugs</b>One issue per regression, never twice. REST API and metrics alongside</div>
+</div>
+
+<h2 id="try">Try it</h2>
+<p class="mut">Build 27A1 against 27A2, real output of the Python run. The same test runs here in your browser; <code>regress.py</code> is the source of truth.</p>
+<div class="panel">
+<div class="ctl">
+<label>Minimum effect on the median <output id="eo">5%</output><input id="eff" type="range" min="0" max="30" step="1" value="5"></label>
+<label>Alpha before correction <output id="ao">0.01</output><input id="alp" type="range" min="1" max="50" step="1" value="10"></label>
+</div>
+<div class="bars" id="bars"></div>
+<p class="mut" id="verdict" style="margin-top:12px"></p>
+<p class="mut" style="font-size:13px">Planted changes: Photos launch +18%, Maps battery +25%, Safari hang +2%. Measured on 1,800 samples per group, so the numbers wobble around the planted ones. Green line is your effect floor.</p>
+</div>
+
+<h2>What each part shows</h2>
+<div class="scroll"><table>
+<tr><th>Skill</th><th>Where</th><th>What is real, and what is not</th></tr>
+<tr><td>Streaming ingestion</td><td><code>spark_jobs.py</code></td><td>Structured Streaming file source, checkpoint, micro-batches, <code>foreachBatch</code> sink. No Kafka in this repo; see <a href="https://github.com/gerardrecinto/kafka-ops-lab">kafka-ops-lab</a>. No Flink.</td></tr>
+<tr><td>Data quality</td><td><code>test_pipeline.py</code></td><td>Every row is accounted for: stored plus rejected equals read. Reject reasons are kept.</td></tr>
+<tr><td>Privacy</td><td><code>privacy.py</code></td><td>Allowlist, salted hash token, groups under 20 devices suppressed. Tests check no email and no device id in storage or the API.</td></tr>
+<tr><td>Regression detection</td><td><code>regress.py</code></td><td>Planted two regressions and one change too small to count. Flags exactly the two. An improvement is never flagged.</td></tr>
+<tr><td>Automatic bugs</td><td><code>bugs.py</code></td><td>Fingerprinted, filed once. The GitHub sink is tested against a local fake server, not against GitHub.</td></tr>
+<tr><td>REST service</td><td><code>api.py</code></td><td>Validated query parameters, 404, 422, 503 paths, tested over HTTP with the FastAPI test client.</td></tr>
+<tr><td>Telemetry and dashboards</td><td><code>deploy/</code></td><td>Prometheus metrics, five alert rules checked with <code>promtool test rules</code>, a Grafana dashboard whose queries are tested against the real metric names. The dashboard was never loaded into a running Grafana.</td></tr>
+<tr><td>ETL and Airflow</td><td><code>dags/</code></td><td>A three task DAG, loaded and order-checked in CI. Never run under a live Airflow scheduler.</td></tr>
+<tr><td>Languages</td><td>whole repo</td><td>Python and PySpark. No Scala here.</td></tr>
+<tr><td>Scale</td><td>n/a</td><td>One machine, 45 thousand rows, 40 seconds. Nothing here is a claim about billions of devices.</td></tr>
+</table></div>
+
+<h2>Decisions and trade-offs</h2>
+<p>All design-only: nothing here ran in production.</p>
+<div class="scroll"><table>
+<tr><th>Chose</th><th>Over</th><th>Why</th><th>Costs</th><th>Flip when</th></tr>
+<tr><td>Exact dedupe at aggregate time</td><td>Streaming <code>dropDuplicatesWithinWatermark</code></td><td>In my run, rows older than the watermark vanished: one rejected row went missing, and a six-file test lost three rows. A test now pins it.</td><td>A shuffle over the whole day's data.</td><td>The source is Kafka with a transactional sink, or ids live in a keyed store with a TTL.</td></tr>
+<tr><td>Welch test on summary stats</td><td>Test on every raw event</td><td>Cost grows with groups, not events.</td><td>Mean is skewed for latency data. Fine at 1,800 samples, weak under a few hundred.</td><td>Small groups. Use Mann-Whitney or a bootstrap on raw samples.</td></tr>
+<tr><td>Bonferroni</td><td>Benjamini-Hochberg</td><td>Twelve tests per build pair, and a false bug costs an engineer's time.</td><td>Misses weak but real changes.</td><td>Hundreds of groups per build.</td></tr>
+<tr><td>5% effect floor plus a test</td><td>Significance alone</td><td>At large n a 0.5% shift is "significant" and not worth a bug.</td><td>Slow creep below 5% per build goes unseen.</td><td>Add a trend check across several builds.</td></tr>
+<tr><td>Salted hash token</td><td>Raw device id</td><td>Distinct-device counts still work for the k rule.</td><td>Rotating the salt breaks joins across periods.</td><td>Never needed for this use; keep the salt out of the repo in real use.</td></tr>
+<tr><td>Fingerprint state file</td><td>Search issues by label</td><td>Works offline, no read permission needed.</td><td>The file must be kept across runs.</td><td>The DAG runs on several workers. Search issues by fingerprint.</td></tr>
+</table></div>
+
+<h2>Run it</h2>
+<p class="mut">Python 3.10 or newer and Java 17 or newer. About a minute on a laptop.</p>
+<pre>git clone https://github.com/gerardrecinto/diagnostics-regression-lab
+cd diagnostics-regression-lab
+python3 -m venv .venv &amp;&amp; . .venv/bin/activate
+pip install -e ".[dev]"
+python -m diaglab demo
+DATA_DIR=data/out uvicorn diaglab.api:app --port 8000
+curl "localhost:8000/v1/regressions?baseline=27A1&amp;candidate=27A2"</pre>
+<p class="mut">MIT license. Personal project, synthetic data, not a production system.</p>
+</main>
+<script>
+const DATA=[{"os_build":"27A1","app":"Mail","metric":"battery_pct_per_hr","n":1800,"mean":1.1571,"std":0.3582,"p50":1.1},{"os_build":"27A1","app":"Mail","metric":"hang_ms","n":1800,"mean":100.0289,"std":53.2929,"p50":87.784},{"os_build":"27A1","app":"Mail","metric":"launch_ms","n":1800,"mean":445.4761,"std":157.6357,"p50":418.189},{"os_build":"27A1","app":"Maps","metric":"battery_pct_per_hr","n":1800,"mean":3.5996,"std":1.1053,"p50":3.411},{"os_build":"27A1","app":"Maps","metric":"hang_ms","n":1800,"mean":158.0779,"std":84.9565,"p50":138.944},{"os_build":"27A1","app":"Maps","metric":"launch_ms","n":1800,"mean":695.2032,"std":253.6973,"p50":656.418},{"os_build":"27A1","app":"Photos","metric":"battery_pct_per_hr","n":1800,"mean":1.8908,"std":0.5829,"p50":1.81},{"os_build":"27A1","app":"Photos","metric":"hang_ms","n":1800,"mean":138.8743,"std":73.1538,"p50":122.407},{"os_build":"27A1","app":"Photos","metric":"launch_ms","n":1800,"mean":843.1206,"std":297.8332,"p50":796.818},{"os_build":"27A1","app":"Safari","metric":"battery_pct_per_hr","n":1800,"mean":1.5721,"std":0.4856,"p50":1.5},{"os_build":"27A1","app":"Safari","metric":"hang_ms","n":1800,"mean":114.5885,"std":60.1227,"p50":101.825},{"os_build":"27A1","app":"Safari","metric":"launch_ms","n":1800,"mean":403.826,"std":144.6086,"p50":375.249},{"os_build":"27A2","app":"Mail","metric":"battery_pct_per_hr","n":1800,"mean":1.1594,"std":0.3498,"p50":1.116},{"os_build":"27A2","app":"Mail","metric":"hang_ms","n":1800,"mean":100.2478,"std":51.8357,"p50":88.621},{"os_build":"27A2","app":"Mail","metric":"launch_ms","n":1800,"mean":447.5971,"std":161.2562,"p50":417.27},{"os_build":"27A2","app":"Maps","metric":"battery_pct_per_hr","n":1800,"mean":4.4539,"std":1.3019,"p50":4.3},{"os_build":"27A2","app":"Maps","metric":"hang_ms","n":1800,"mean":160.3716,"std":87.5058,"p50":141.067},{"os_build":"27A2","app":"Maps","metric":"launch_ms","n":1800,"mean":694.4678,"std":252.66,"p50":655.889},{"os_build":"27A2","app":"Photos","metric":"battery_pct_per_hr","n":1800,"mean":1.9082,"std":0.6187,"p50":1.816},{"os_build":"27A2","app":"Photos","metric":"hang_ms","n":1800,"mean":136.7185,"std":73.5193,"p50":119.395},{"os_build":"27A2","app":"Photos","metric":"launch_ms","n":1800,"mean":1016.5051,"std":367.8655,"p50":956.403},{"os_build":"27A2","app":"Safari","metric":"battery_pct_per_hr","n":1800,"mean":1.5699,"std":0.4766,"p50":1.517},{"os_build":"27A2","app":"Safari","metric":"hang_ms","n":1800,"mean":113.572,"std":59.89,"p50":100.414},{"os_build":"27A2","app":"Safari","metric":"launch_ms","n":1800,"mean":410.8026,"std":154.7951,"p50":381.895}];
+const BASE="27A1",CAND="27A2";
+function erfc(x){const z=Math.abs(x),t=1/(1+.5*z);const r=t*Math.exp(-z*z-1.26551223+t*(1.00002368+t*(.37409196+t*(.09678418+t*(-.18628806+t*(.27886807+t*(-1.13520398+t*(1.48851587+t*(-.82215223+t*.17087277)))))))));return x>=0?r:2-r}
+function detect(minEffect,alpha){
+  const b={},c={};DATA.forEach(r=>{(r.os_build===BASE?b:r.os_build===CAND?c:{})[r.app+"|"+r.metric]=r});
+  const keys=Object.keys(b).filter(k=>c[k]).sort();const corr=alpha/keys.length;
+  return keys.map(k=>{const x=b[k],y=c[k];const se=Math.sqrt(x.std**2/x.n+y.std**2/y.n);
+    const z=(y.mean-x.mean)/se,p=erfc(Math.abs(z)/Math.SQRT2),rel=(y.p50-x.p50)/x.p50;
+    return {k,rel,p,flag:rel>=minEffect&&z>0&&p<corr}})}
+function draw(){
+  const eff=+document.getElementById("eff").value/100,alp=+document.getElementById("alp").value/1000;
+  document.getElementById("eo").textContent=Math.round(eff*100)+"%";
+  document.getElementById("ao").textContent=alp.toFixed(3);
+  const res=detect(eff,alp),max=.35;
+  document.getElementById("bars").innerHTML=res.map(r=>{
+    const w=Math.max(0,Math.min(100,r.rel/max*100)),t=Math.min(100,eff/max*100);
+    const name=r.k.replace("|"," / ");
+    return `<div class="row"><span>${name}</span><div class="track"><div class="fill ${r.flag?"flag":""}" style="width:${w}%"></div><div class="thr" style="left:${t}%"></div></div><span class="tag ${r.flag?"flag":""}">${(r.rel*100>=0?"+":"")}${(r.rel*100).toFixed(1)}% ${r.flag?"BUG":""}</span></div>`}).join("");
+  const n=res.filter(r=>r.flag).length;
+  document.getElementById("verdict").textContent=n+" of "+res.length+" groups would file a bug at these settings.";
+}
+document.getElementById("eff").addEventListener("input",draw);document.getElementById("alp").addEventListener("input",draw);draw();
+</script>
+</body>
+</html>

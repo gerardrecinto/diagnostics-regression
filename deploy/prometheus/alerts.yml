@@ -1,0 +1,36 @@
+groups:
+  - name: diaglab
+    rules:
+      - alert: DiaglabSummaryStale
+        expr: diaglab_summary_age_seconds > 90000
+        for: 10m
+        labels: {severity: page}
+        annotations:
+          summary: "Daily summary is over 25 hours old"
+          runbook: "Check the diagnostics_daily DAG run, then the Spark ingest task log."
+      - alert: DiaglabRejectRateHigh
+        expr: diaglab_pipeline_rows{stage="rejected_rows"} / ignoring(stage) diaglab_pipeline_rows{stage="raw_rows"} > 0.05
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: "More than 5% of incoming events were rejected"
+          runbook: "Read the reject_reason breakdown in out/rejects; a client build may be sending a new shape."
+      - alert: DiaglabRowsUnaccounted
+        expr: diaglab_pipeline_rows{stage="unaccounted_rows"} != 0
+        for: 5m
+        labels: {severity: page}
+        annotations:
+          summary: "Rows read are not equal to rows stored plus rejected"
+          runbook: "Rows are being lost between the source and the tables. Stop the DAG and diff the counts."
+      - alert: DiaglabApiErrors
+        expr: sum(rate(diaglab_http_requests_total{status=~"5.."}[5m])) / sum(rate(diaglab_http_requests_total[5m])) > 0.05
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: "More than 5% of API requests return 5xx"
+      - alert: DiaglabApiSlow
+        expr: histogram_quantile(0.95, sum by (le) (rate(diaglab_http_request_seconds_bucket[5m]))) > 0.5
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: "API p95 latency is above 500 ms"

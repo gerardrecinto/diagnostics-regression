@@ -1,0 +1,40 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install -c https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.12.txt \
+            -e ".[dev,airflow]"
+      - run: ruff check src tests dags
+      - name: Initialise the Airflow metadata database
+        run: airflow db migrate
+        env:
+          AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      - run: python -m pytest -q
+        env:
+          AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      - run: python -m diaglab demo --dir data
+  alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: promtool
+        run: |
+          docker run --rm -v "$PWD/deploy/prometheus:/p" --entrypoint promtool prom/prometheus:v2.55.1 check rules /p/alerts.yml
+          docker run --rm -v "$PWD/deploy/prometheus:/p" --entrypoint promtool prom/prometheus:v2.55.1 test rules /p/alerts_test.yml
