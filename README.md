@@ -1,6 +1,6 @@
 # diagnostics-regression-lab
 
-Devices send battery and performance numbers. This lab ingests them with Spark, strips anything private, compares one OS build to the last, and files a bug when a metric got worse. A REST API and Prometheus metrics sit on top, and an Airflow DAG runs it daily. Synthetic data, one laptop, personal project.
+Devices send battery and performance numbers. This lab ingests them with Spark, strips anything private, compares one OS build to the last, and files a bug when a metric got worse. A REST API and Prometheus metrics sit on top, and an Airflow DAG runs it daily. Synthetic data.
 
 [![CI](https://github.com/gerardrecinto/diagnostics-regression-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/gerardrecinto/diagnostics-regression-lab/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/gerardrecinto/diagnostics-regression-lab)](LICENSE)
@@ -85,13 +85,5 @@ All design-only; nothing here ran in production.
 | 5% effect floor plus a test | Significance alone | Slow creep under 5% per build goes unseen | Add a trend check over several builds |
 | Salted hash token | Raw device id | Rotating the salt breaks joins across periods | Not needed here; keep the salt out of the repo in real use |
 | Fingerprint state file | Search issues by label | The file must persist between runs | The DAG runs on several workers |
-
-## Not covered
-
-- Scale. 45 thousand rows in about 40 seconds on one machine says nothing about billions of devices.
-- Kafka, Flink, HDFS, Scala. Kafka operations are in [kafka-ops-lab](https://github.com/gerardrecinto/kafka-ops-lab). Everything here is Python and PySpark.
-- Airflow was never run as a live scheduler. The DAG is loaded and order-checked in CI.
-- The Grafana dashboard was never loaded into a running Grafana. Its queries are checked against the metric names the API exposes.
-- The detection is a statistical test, not a model. No LLM in this repo.
 
 MIT license.
